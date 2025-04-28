@@ -1,0 +1,145 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}CPK分析系统{% endblock %}
+
+{% block styles %}
+{{super()}}
+<style>
+    .container { margin-top: 30px; }
+    .result-card { margin-top: 20px; }
+    .plot-container { margin-top: 20px; text-align: center; }
+    .plot-image { max-width: 100%; height: auto; }
+    .loading { display: none; }
+    .error-message { color: red; margin-top: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center">CPK分析系统</h1>
+    
+    <div class="row">
+        <div class="col-md-6 col-md-offset-3">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">参数设置</h3>
+                </div>
+                <div class="panel-body">
+                    <form id="cpkForm">
+                        <div class="form-group">
+                            <label for="lsl">规格下限 (LSL)</label>
+                            <input type="number" class="form-control" id="lsl" value="94" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="usl">规格上限 (USL)</label>
+                            <input type="number" class="form-control" id="usl" value="106" step="0.1">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">分析</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="loading text-center">
+                <img src="https://loading.io/spinners/dual-ring/lg.dual-ring-loader.gif" alt="Loading...">
+            </div>
+            
+            <div id="error" class="error-message"></div>
+            
+            <div id="results" class="result-card" style="display: none;">
+                <div class="panel panel-success">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">分析结果</h3>
+                    </div>
+                    <div class="panel-body">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>CPK</th>
+                                <td id="cpk-value">-</td>
+                            </tr>
+                            <tr>
+                                <th>平均值</th>
+                                <td id="mean-value">-</td>
+                            </tr>
+                            <tr>
+                                <th>标准差</th>
+                                <td id="std-value">-</td>
+                            </tr>
+                            <tr>
+                                <th>CPU</th>
+                                <td id="cpu-value">-</td>
+                            </tr>
+                            <tr>
+                                <th>CPL</th>
+                                <td id="cpl-value">-</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="plot" class="plot-container">
+                <!-- 图表将在这里显示 -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{super()}}
+<script>
+document.getElementById('cpkForm').onsubmit = function(e) {
+    e.preventDefault();
+    
+    // 显示加载动画
+    document.querySelector('.loading').style.display = 'block';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('error').textContent = '';
+    document.getElementById('plot').innerHTML = '';
+    
+    // 获取输入值
+    const lsl = document.getElementById('lsl').value;
+    const usl = document.getElementById('usl').value;
+    
+    // 发送请求
+    fetch('/analyze', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            lsl: lsl,
+            usl: usl
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 隐藏加载动画
+        document.querySelector('.loading').style.display = 'none';
+        
+        if (data.success) {
+            // 显示结果
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('cpk-value').textContent = data.results.cpk;
+            document.getElementById('mean-value').textContent = data.results.mean;
+            document.getElementById('std-value').textContent = data.results.std;
+            document.getElementById('cpu-value').textContent = data.results.cpu;
+            document.getElementById('cpl-value').textContent = data.results.cpl;
+            
+            // 显示图表
+            const img = document.createElement('img');
+            img.src = 'data:image/png;base64,' + data.plot;
+            img.className = 'plot-image';
+            document.getElementById('plot').innerHTML = '';
+            document.getElementById('plot').appendChild(img);
+        } else {
+            document.getElementById('error').textContent = '错误: ' + data.error;
+        }
+    })
+    .catch(error => {
+        document.querySelector('.loading').style.display = 'none';
+        document.getElementById('error').textContent = '发生错误: ' + error;
+    });
+};
+</script>
+{% endblock %} 
